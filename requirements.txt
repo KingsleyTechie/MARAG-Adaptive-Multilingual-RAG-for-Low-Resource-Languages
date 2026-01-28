@@ -1,0 +1,43 @@
+# Core dependencies
+torch>=2.0.0
+transformers>=4.30.0
+sentence-transformers>=2.2.0
+datasets>=2.12.0
+accelerate>=0.20.0
+
+# Retrieval and search
+faiss-cpu>=1.7.0  # or faiss-gpu
+pyserini==0.22.0
+rank-bm25>=0.2.2
+
+# NLP utilities
+langdetect>=1.0.9
+polyglot>=16.7.4
+nltk>=3.8.0
+spacy>=3.5.0
+
+# Knowledge graph
+SPARQLWrapper>=2.0.0
+rdflib>=6.3.0
+
+# Configuration and serialization
+pyyaml>=6.0
+dataclasses-json>=0.5.0
+pydantic>=2.0.0
+
+# Evaluation
+rouge-score>=0.1.2
+bert-score>=0.3.13
+openai>=1.0.0  # For GPT-4 evaluation
+
+# Utilities
+tqdm>=4.65.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Development
+black>=23.0.0
+flake8>=6.0.0
+pytest>=7.0.0
+pre-commit>=3.0.0
