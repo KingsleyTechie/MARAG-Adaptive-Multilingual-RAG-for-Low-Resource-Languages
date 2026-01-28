@@ -1,0 +1,76 @@
+# MARAG Default Configuration
+# Adaptive Multilingual RAG Framework
+
+project:
+  name: "MARAG"
+  version: "1.0.0"
+  description: "Multilingual Adaptive RAG for Under-Represented Languages"
+
+languages:
+  supported:
+    - code: "sw"
+      name: "Swahili"
+      family: "Niger-Congo"
+      script: "Latin"
+    - code: "bn"
+      name: "Bengali"
+      family: "Indo-European"
+      script: "Bengali"
+    - code: "am"
+      name: "Amharic"
+      family: "Afro-Asiatic"
+      script: "Ge'ez"
+    - code: "es"
+      name: "Spanish"
+      family: "Indo-European"
+      script: "Latin"
+
+retrieval:
+  strategies:
+    dense:
+      enabled: true
+      embedder: "BAAI/bge-m3"
+      max_seq_length: 512
+      pooling_method: "cls"
+    
+    hybrid:
+      enabled: true
+      sparse_weight: 0.4
+      dense_weight: 0.6
+      keyword_expansion: true
+      max_keywords: 10
+    
+    kg:
+      enabled: true
+      wikidata_endpoint: "https://query.wikidata.org/sparql"
+      max_hop_distance: 2
+      entity_linking_threshold: 0.8
+
+router:
+  model_type: "mlp"
+  input_features: 10
+  hidden_layers: [128, 64]
+  dropout_rate: 0.2
+  learning_rate: 0.001
+  training_epochs: 50
+  batch_size: 32
+
+evaluation:
+  metrics:
+    - "hit_rate@5"
+    - "answer_relevance"
+    - "factual_accuracy"
+    - "retrieval_latency"
+  human_evaluation_samples: 100
+  gpt4_judge_temperature: 0.0
+
+resources:
+  compute:
+    device: "cuda"  # or "cpu"
+    fp16: true
+    num_workers: 4
+  
+  memory:
+    max_documents: 1000000
+    cache_embeddings: true
+    cache_dir: "./cache"
