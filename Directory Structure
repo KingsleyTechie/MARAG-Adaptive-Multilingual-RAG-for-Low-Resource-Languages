@@ -1,0 +1,127 @@
+MARAG-Multilingual-Adaptive-RAG/
+│
+├── LICENSE
+├── README.md
+├── requirements.txt
+├── setup.py
+│
+├── data/
+│   ├── benchmarks/
+│   │   ├── mulr_benchmark/
+│   │   │   ├── swahili/
+│   │   │   │   ├── train.jsonl
+│   │   │   │   ├── dev.jsonl
+│   │   │   │   └── test.jsonl
+│   │   │   ├── bengali/
+│   │   │   ├── amharic/
+│   │   │   └── spanish/
+│   │   └── language_profiles/
+│   │       ├── language_metrics.json
+│   │       └── profile_calculations.py
+│   └── knowledge_graphs/
+│       ├── wikidata_alignment/
+│       │   ├── alignment_scripts.py
+│       │   └── aligned_entities.json
+│       └── local_knowledge/
+│           ├── swahili_entities.json
+│           ├── bengali_entities.json
+│           └── amharic_entities.json
+│
+├── src/
+│   ├── marag/
+│   │   ├── __init__.py
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── router.py
+│   │   │   ├── language_profiler.py
+│   │   │   └── decision_engine.py
+│   │   ├── indices/
+│   │   │   ├── __init__.py
+│   │   │   ├── dense_index.py
+│   │   │   ├── hybrid_index.py
+│   │   │   ├── kg_index.py
+│   │   │   └── index_factory.py
+│   │   ├── retrieval/
+│   │   │   ├── __init__.py
+│   │   │   ├── embedders.py
+│   │   │   ├── sparse_retriever.py
+│   │   │   └── fusion_strategies.py
+│   │   ├── evaluation/
+│   │   │   ├── __init__.py
+│   │   │   ├── metrics.py
+│   │   │   ├── benchmark_evaluator.py
+│   │   │   └── human_evaluation.py
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── data_loader.py
+│   │       ├── logger.py
+│   │       └── multilingual_tools.py
+│   │
+│   ├── experiments/
+│   │   ├── run_benchmark.py
+│   │   ├── train_router.py
+│   │   ├── build_indices.py
+│   │   └── ablation_studies.py
+│   │
+│   └── scripts/
+│       ├── download_data.sh
+│       ├── setup_environment.sh
+│       ├── run_evaluation.sh
+│       └── profile_languages.py
+│
+├── models/
+│   ├── pretrained/
+│   │   ├── router_model/
+│   │   │   ├── config.json
+│   │   │   ├── model_weights.bin
+│   │   │   └── router_metadata.json
+│   │   └── tuned_embeddings/
+│   │       ├── bge_m3_swahili/
+│   │       ├── bge_m3_bengali/
+│   │       └── bge_m3_amharic/
+│   └── trained/
+│       └── README.md
+│
+├── notebooks/
+│   ├── 01_language_profiling.ipynb
+│   ├── 02_router_training.ipynb
+│   ├── 03_benchmark_evaluation.ipynb
+│   └── 04_error_analysis.ipynb
+│
+├── tests/
+│   ├── test_router.py
+│   ├── test_indices.py
+│   ├── test_retrieval.py
+│   └── conftest.py
+│
+├── configs/
+│   ├── default_config.yaml
+│   ├── language_configs/
+│   │   ├── swahili_config.yaml
+│   │   ├── bengali_config.yaml
+│   │   ├── amharic_config.yaml
+│   │   └── spanish_config.yaml
+│   └── experiment_configs/
+│       ├── baseline_dense.yaml
+│       ├── baseline_hybrid.yaml
+│       └── marag_full.yaml
+│
+├── results/
+│   ├── benchmark_results/
+│   │   ├── main_results.json
+│   │   ├── per_language_analysis.json
+│   │   └── latency_measurements.json
+│   ├── figures/
+│   │   ├── performance_comparison.png
+│   │   ├── router_distribution.png
+│   │   └── embedding_visualization.png
+│   └── logs/
+│       ├── training_logs.txt
+│       └── evaluation_logs.txt
+│
+└── docs/
+    ├── api_reference.md
+    ├── benchmark_details.md
+    ├── deployment_guide.md
+    ├── ethical_guidelines.md
+    └── contributing.md
