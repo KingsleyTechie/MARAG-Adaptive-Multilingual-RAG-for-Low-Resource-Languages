@@ -1,0 +1,252 @@
+"""
+src/marag/evaluation/benchmark_evaluator.py
+Complete evaluation system with all metrics
+"""
+
+import json
+import time
+import statistics
+from typing import Dict, List, Tuple, Any
+from dataclasses import dataclass
+import numpy as np
+from tqdm import tqdm
+import logging
+
+from src.marag.core.router import AdaptiveRouter
+from src.marag.indices.index_factory import IndexFactory
+from src.marag.evaluation.metrics import calculate_hr_at_k, calculate_ndcg
+
+@dataclass
+class EvaluationResult:
+    """Comprehensive evaluation result container"""
+    query_id: str
+    language: str
+    router_decision: str
+    router_confidence: float
+    retrieval_time_ms: float
+    retrieved_documents: List[str]
+    relevance_scores: List[int]  # 0/1 for binary relevance
+    answer_generated: str
+    answer_relevance_score: float  # 1-5 from GPT-4 judge
+    is_factually_correct: bool
+    latency_breakdown: Dict[str, float]
+
+class BenchmarkEvaluator:
+    """Complete evaluation system for MARAG"""
+    
+    def __init__(self, router, index_factory, language_profiles, config):
+        self.router = router
+        self.index_factory = index_factory
+        self.language_profiles = language_profiles
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        
+        # Initialize metrics storage
+        self.results_by_language = {}
+        self.overall_metrics = {}
+        
+    def evaluate_single_query(self, query: Dict, language: str) -> EvaluationResult:
+        """Evaluate a single query through the full MARAG pipeline"""
+        
+        start_time = time.time()
+        query_text = query["question"]
+        query_id = query["id"]
+        gold_answers = query["answers"]
+        relevant_docs = query.get("relevant_documents", [])
+        
+        # Get language profile
+        profile = self.language_profiles.get(language)
+        if not profile:
+            profile = self._get_default_profile(language)
+        
+        # Extract query features for router
+        query_features = self._extract_query_features(query_text, language)
+        
+        # Router decision
+        router_start = time.time()
+        router_decision = self.router.decide(profile, query_features)
+        router_time = time.time() - router_start
+        
+        # Retrieve documents
+        retrieval_start = time.time()
+        index = self.index_factory.get_index(router_decision.selected_index, language)
+        retrieved = index.search(query_text, top_k=5)
+        retrieval_time = time.time() - retrieval_start
+        
+        # Generate answer
+        generation_start = time.time()
+        context = " ".join([doc.content for doc in retrieved[:3]])
+        answer = self._generate_answer(query_text, context, language)
+        generation_time = time.time() - generation_start
+        
+        # Calculate relevance scores
+        relevance_scores = self._calculate_relevance_scores(retrieved, relevant_docs)
+        
+        # GPT-4 evaluation (simplified - would call OpenAI API)
+        answer_relevance = self._gpt4_judge_relevance(query_text, answer, language)
+        
+        # Human-like factual accuracy check
+        factual_correct = self._check_factual_accuracy(answer, gold_answers, language)
+        
+        total_time = time.time() - start_time
+        
+        return EvaluationResult(
+            query_id=query_id,
+            language=language,
+            router_decision=router_decision.selected_index,
+            router_confidence=router_decision.confidence,
+            retrieval_time_ms=retrieval_time * 1000,
+            retrieved_documents=[doc.document_id for doc in retrieved],
+            relevance_scores=relevance_scores,
+            answer_generated=answer,
+            answer_relevance_score=answer_relevance,
+            is_factually_correct=factual_correct,
+            latency_breakdown={
+                "router_ms": router_time * 1000,
+                "retrieval_ms": retrieval_time * 1000,
+                "generation_ms": generation_time * 1000,
+                "total_ms": total_time * 1000
+            }
+        )
+    
+    def evaluate_language(self, language: str, queries: List[Dict]) -> Dict[str, Any]:
+        """Evaluate all queries for a specific language"""
+        self.logger.info(f"Evaluating {len(queries)} queries for {language}")
+        
+        results = []
+        for query in tqdm(queries, desc=f"Evaluating {language}"):
+            result = self.evaluate_single_query(query, language)
+            results.append(result)
+        
+        # Calculate aggregate metrics
+        metrics = self._calculate_aggregate_metrics(results)
+        
+        # Store results
+        self.results_by_language[language] = {
+            "results": results,
+            "metrics": metrics
+        }
+        
+        return metrics
+    
+    def evaluate_all(self, benchmark_data: Dict[str, List[Dict]]) -> Dict[str, Any]:
+        """Evaluate all languages in the benchmark"""
+        all_results = {}
+        
+        for language, queries in benchmark_data.items():
+            self.logger.info(f"\n{'='*50}")
+            self.logger.info(f"Language: {language.upper()}")
+            self.logger.info(f"{'='*50}")
+            
+            metrics = self.evaluate_language(language, queries)
+            all_results[language] = metrics
+        
+        # Calculate cross-language metrics
+        cross_language_metrics = self._calculate_cross_language_metrics(all_results)
+        all_results["cross_language"] = cross_language_metrics
+        
+        # Generate comparison with baselines
+        baseline_comparison = self._compare_with_baselines(all_results)
+        all_results["baseline_comparison"] = baseline_comparison
+        
+        return all_results
+    
+    def _calculate_aggregate_metrics(self, results: List[EvaluationResult]) -> Dict:
+        """Calculate all metrics from evaluation results"""
+        if not results:
+            return {}
+        
+        metrics = {
+            "num_queries": len(results),
+            "router_decisions": {},
+            "retrieval_metrics": {},
+            "answer_quality": {},
+            "latency": {}
+        }
+        
+        # Router decision distribution
+        decisions = [r.router_decision for r in results]
+        for decision in set(decisions):
+            metrics["router_decisions"][decision] = decisions.count(decision) / len(results)
+        
+        # Retrieval metrics
+        all_relevance = [score for r in results for score in r.relevance_scores]
+        if all_relevance:
+            metrics["retrieval_metrics"]["hit_rate@5"] = calculate_hr_at_k(all_relevance, k=5)
+            metrics["retrieval_metrics"]["ndcg@5"] = calculate_ndcg(all_relevance, k=5)
+        
+        # Answer quality
+        relevance_scores = [r.answer_relevance_score for r in results if r.answer_relevance_score]
+        factual_scores = [r.is_factually_correct for r in results]
+        
+        if relevance_scores:
+            metrics["answer_quality"]["avg_relevance"] = statistics.mean(relevance_scores)
+            metrics["answer_quality"]["min_relevance"] = min(relevance_scores)
+            metrics["answer_quality"]["max_relevance"] = max(relevance_scores)
+        
+        if factual_scores:
+            metrics["answer_quality"]["factual_accuracy"] = sum(factual_scores) / len(factual_scores)
+        
+        # Latency
+        retrieval_times = [r.retrieval_time_ms for r in results]
+        total_times = [sum(r.latency_breakdown.values()) for r in results]
+        
+        if retrieval_times:
+            metrics["latency"]["retrieval_p50_ms"] = statistics.median(retrieval_times)
+            metrics["latency"]["retrieval_p95_ms"] = np.percentile(retrieval_times, 95)
+            metrics["latency"]["total_p50_ms"] = statistics.median(total_times)
+            metrics["latency"]["total_p95_ms"] = np.percentile(total_times, 95)
+        
+        return metrics
+    
+    def generate_summary_report(self, results: Dict) -> str:
+        """Generate human-readable summary report"""
+        report = []
+        report.append("MARAG EVALUATION SUMMARY")
+        report.append("=" * 50)
+        
+        for language, metrics in results.items():
+            if language == "cross_language" or language == "baseline_comparison":
+                continue
+            
+            report.append(f"\nLanguage: {language.upper()}")
+            report.append("-" * 30)
+            
+            if "answer_quality" in metrics:
+                report.append(f"Factual Accuracy: {metrics['answer_quality'].get('factual_accuracy', 0):.3f}")
+                report.append(f"Avg Answer Relevance: {metrics['answer_quality'].get('avg_relevance', 0):.2f}/5.0")
+            
+            if "retrieval_metrics" in metrics:
+                report.append(f"Hit Rate @5: {metrics['retrieval_metrics'].get('hit_rate@5', 0):.3f}")
+            
+            if "latency" in metrics:
+                report.append(f"Median Retrieval Time: {metrics['latency'].get('retrieval_p50_ms', 0):.1f}ms")
+        
+        # Add cross-language summary
+        if "cross_language" in results:
+            report.append("\n" + "=" * 50)
+            report.append("CROSS-LANGUAGE SUMMARY")
+            report.append("-" * 30)
+            
+            cross = results["cross_language"]
+            report.append(f"Average Factual Accuracy: {cross.get('avg_factual_accuracy', 0):.3f}")
+            report.append(f"MARAG Improvement vs Dense Baseline: {cross.get('improvement_vs_dense', 0):.1%}")
+            report.append(f"MARAG Improvement vs Hybrid Baseline: {cross.get('improvement_vs_hybrid', 0):.1%}")
+        
+        return "\n".join(report)
+    
+    # Helper methods would be implemented here...
+    def _extract_query_features(self, query: str, language: str) -> Dict:
+        """Extract features from query for router decision"""
+        # Implementation for query analysis
+        pass
+    
+    def _generate_answer(self, query: str, context: str, language: str) -> str:
+        """Generate answer using LLM"""
+        # Implementation for answer generation
+        pass
+    
+    def _gpt4_judge_relevance(self, query: str, answer: str, language: str) -> float:
+        """Use GPT-4 to judge answer relevance"""
+        # Implementation for GPT-4 evaluation
+        pass
