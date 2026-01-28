@@ -1,0 +1,54 @@
+{
+  "benchmark": {
+    "name": "MuLR Benchmark v1.0",
+    "description": "Multilingual Localized Retrieval Benchmark",
+    "version": "1.0.0",
+    "creation_date": "2024-01-15",
+    "languages": ["sw", "bn", "am", "es"],
+    "total_queries": 2000,
+    "queries_per_language": 500
+  },
+  "swahili": [
+    {
+      "id": "sw_001",
+      "question": "Je, ni matukio gani mawili yaliyoathiri uundaji wa Katiba ya Kenya ya 2010?",
+      "answers": [
+        "Mgogoro wa uchaguzi wa 2007-2008 na Makubaliano ya Kitaifa",
+        "Vurugu za baada ya uchaguzi wa 2007 na Mkataba wa Kitaifa"
+      ],
+      "question_type": "complex_localized_reasoning",
+      "difficulty": "hard",
+      "relevant_documents": ["doc_sw_045", "doc_sw_112", "doc_sw_089"],
+      "cultural_context": "Kenyan politics",
+      "requires_local_knowledge": true,
+      "answer_requires_synthesis": true
+    },
+    {
+      "id": "sw_002",
+      "question": "Nani alikuwa mhariri wa kwanza wa gazeti la Kiswahili la Mambo Leo?",
+      "answers": ["Robert R. K. Mdoe"],
+      "question_type": "factoid_localized_knowledge",
+      "difficulty": "medium",
+      "relevant_documents": ["doc_sw_203"],
+      "cultural_context": "Tanzanian journalism history",
+      "requires_local_knowledge": true,
+      "answer_requires_synthesis": false
+    }
+  ],
+  "spanish": [
+    {
+      "id": "es_001",
+      "question": "¿Qué influencias africanas son visibles en la música tradicional de Veracruz?",
+      "answers": [
+        "Ritmos de son jarocho con influencia bantu, instrumentos como la marimba",
+        "La tambora y ritmos afrocaribeños en el son jarocho"
+      ],
+      "question_type": "complex_localized_reasoning",
+      "difficulty": "medium",
+      "relevant_documents": ["doc_es_178", "doc_es_221"],
+      "cultural_context": "Mexican regional music",
+      "requires_local_knowledge": true,
+      "answer_requires_synthesis": true
+    }
+  ]
+}
